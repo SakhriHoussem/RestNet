@@ -1,5 +1,5 @@
 # RestNet
-Rest-Net test Model
+Rest-Net test Model  From http://ethereon.github.io/netscope/#/gist/db945b393d40bfa26006
 
 
         --input image--
