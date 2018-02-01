@@ -156,15 +156,15 @@ print(bar,"\n------Res1-----\n",*tf.shape(res1).eval())
 res1 = relu_layer(res1)
 print("------Relu-----\n",*tf.shape(res1).eval())
 #************************************************************************************
-    #############   Block3    ###################
+#     #############   Block3    ###################
 print(fleshpara+bar,para)
-   #############   conv31    ###################
+    #############   conv31    ###################
 # filter size
 filter_size=1
 # number of filters
-num_filters=128
-conv31=conv_layer(res1,num_filters,filter_size,strides=2,padding='VALID',use_bias=False)
-print("----Conv 31----",para,"\n ",*tf.shape(conv31).eval())
+num_filters=64
+conv31=conv_layer(res1,num_filters,filter_size,strides=1,padding='VALID',use_bias=False)
+print("----Conv 31----",para,"\n ",*tf.shape(conv21).eval())
 batchNorm_layer()
 scale_layer()
 conv31 = relu_layer(conv31)
@@ -172,11 +172,11 @@ sess.run(tf.global_variables_initializer())
 result=sess.run(conv31)
 print("-----Relu------",para,"\n ",*tf.shape(result).eval())
 print(flesh)
-   #############   conv32    ###################
+   #############   conv22    ###################
 # filter size
 filter_size=3
 # number of filters
-num_filters=128
+num_filters=64
 conv32=conv_layer(conv31,num_filters,filter_size,strides=1,padding='SAME',use_bias=False)
 print("----Conv 32----",para,"\n ",*tf.shape(conv32).eval())
 batchNorm_layer()
@@ -187,27 +187,70 @@ result=sess.run(conv32)
 print("-----Relu------",para,"\n ",*tf.shape(result).eval())
 print(flesh)
 #************************************************************************************
-
-
-   #############   conv33    ###################
-# filter size
-filter_size=1
-# number of filters
-num_filters=512
-conv23=conv_layer(conv22,num_filters,filter_size,strides=1,padding='VALID',use_bias=False)
+    #############   conv33    ###################
 # filter size
 filter_size=1
 # number of filters
 num_filters=256
-padding='VALID'
-#strides=1
-conv11=conv_layer(pool1,num_filters,filter_size,1,padding=padding,use_bias=False)
-print("----Conv 23----          ----Conv 11----")
-print(*tf.shape(conv23).eval(),"              ",*tf.shape(conv11).eval())
+conv33=conv_layer(conv32,num_filters,filter_size,strides=1,padding='VALID',use_bias=False)
+print("----Conv 33----")
+print(*tf.shape(conv33).eval())
 batchNorm_layer()
 scale_layer()
 sess.run(tf.global_variables_initializer())
-result=sess.run(conv23)
+result=sess.run(conv33)
+print(concat)
+    #############   res1    ###################
+res1 = sess.run(conv33+conv11)
+print(bar,"\n------Res1-----\n",*tf.shape(res1).eval())
+res1 = relu_layer(res1)
+print("------Relu-----\n",*tf.shape(res1).eval())
+#************************************************************************************
+    #############   Block4    ###################
+print(fleshpara+bar,para)
+   #############   conv41    ###################
+# filter size
+filter_size=1
+# number of filters
+num_filters=128
+conv41=conv_layer(res1,num_filters,filter_size,strides=2,padding='VALID',use_bias=False)
+print("----Conv 41----",para,"\n ",*tf.shape(conv41).eval())
+batchNorm_layer()
+scale_layer()
+conv41 = relu_layer(conv41)
+sess.run(tf.global_variables_initializer())
+result=sess.run(conv41)
+print("-----Relu------",para,"\n ",*tf.shape(result).eval())
+print(flesh)
+   #############   conv42    ###################
+# filter size
+filter_size=3
+# number of filters
+num_filters=128
+conv42=conv_layer(conv41,num_filters,filter_size,strides=1,padding='SAME',use_bias=False)
+print("----Conv 42----",para,"\n ",*tf.shape(conv42).eval())
+batchNorm_layer()
+scale_layer()
+conv42 = relu_layer(conv42)
+sess.run(tf.global_variables_initializer())
+result=sess.run(conv42)
+print("-----Relu------",para,"\n ",*tf.shape(result).eval())
+print(flesh)
+#************************************************************************************
+
+
+   #############   conv43    ###################
+# filter size
+filter_size=1
+# number of filters
+num_filters=512
+conv43=conv_layer(conv42,num_filters,filter_size,strides=1,padding='VALID',use_bias=False)
+print("----Conv 43----",para)
+print(*tf.shape(conv43).eval())
+batchNorm_layer()
+scale_layer()
+sess.run(tf.global_variables_initializer())
+result=sess.run(conv43)
 print(concat)
 
 sess.close()
