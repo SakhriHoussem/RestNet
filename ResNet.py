@@ -18,12 +18,15 @@ def conv2d(x,W,strides=1,padding='SAME'):
 def pool_max_2x2(x,ksize=2,strides=2,padding='SAME'):
     return tf.nn.max_pool(x,ksize=[1,ksize,ksize,1],strides=[1,strides,strides,1],padding=padding)
 
+def pool_avg(x,ksize=2,strides=2,padding='SAME'):
+    return tf.nn.avg_pool(x,ksize=[1,ksize,ksize,1],strides=[1,strides,strides,1],padding=padding)
+
 
 def batchNorm_layer(): print("---BatchNorm---")
+
 def scale_layer(): print("-----Scale-----")
-def relu_layer(x):
-    print("-----Relu-----")
-    return tf.nn.relu(x)
+
+def relu_layer(x):return tf.nn.relu(x)
 
 
 def conv_layer(data,num_filters,filter_size,strides=1,padding="SAME",use_bias=True,use_relu=True):
@@ -55,39 +58,6 @@ def conv_layer(data,num_filters,filter_size,strides=1,padding="SAME",use_bias=Tr
 
     return conv
 
-
-
-sess=tf.InteractiveSession()
-# load image
-img=Image.open("img.tif")
-# convetir image to tensor
-data=img_to_tensor(img)
-# resizing the image
-# data=tf.image.resize_images(data,[256,256])
-# get img dimension
-img_dimension=tf.shape(data).eval()
-print("--input image--\n",img_dimension)
-# get image height,width,channels
-height,width,channels=img_dimension
-# classes
-classes=["agricultural","airplane","baseballdiamond","beach","buildings","chaparral","denseresidential",
-           "forest","freeway","golfcourse","harbor","intersection","mediumresidential","mobilehomepark","overpass","parkinglot","river","runway","sparseresidential","storagetanks","tenniscourt"]
-# number of classes
-num_classes=len(classes)
-x=tf.placeholder(tf.float32,shape=[height*width*channels])
-y=tf.placeholder(tf.float32,shape=[None,num_classes])
-
-
-# number of filters
-num_filters=64
-# filter size
-filter_size=7
-padding='SAME'
-strides=2
-conv1=conv_layer(data,num_filters,filter_size,strides)
-pool1=pool_max_2x2(conv1)
-
-
 def stepConvConv(data,num_filters=64,filter_size=1,strides=1):
     conv21=conv_layer(data,num_filters,filter_size,strides,padding="VALID",use_bias=False)
     conv22=conv_layer(conv21,num_filters,3,strides,padding='SAME',use_bias=False)
@@ -106,7 +76,7 @@ def block1(data,num_filters=64):
     return convi+conv23
 
 def blockend(data,num_filters=64):
-    conv21=conv_layer(data,num_filters*4,filter_size,strides,padding="VALID",use_bias=False,use_relu=False)
+    conv21=conv_layer(data,num_filters*4,1,2,padding="VALID",use_bias=False,use_relu=False)
     convv = stepConvConvConv(data,num_filters,filter_size=1,strides=1)
     return relu_layer(conv21+convv)
 
@@ -153,25 +123,46 @@ def block5(data,num_filters=512):
     conv23 = stepConvConv(data,num_filters)
     data= relu_layer(data+conv23)
 
-    return tf.nn.avg_pool(data,[1,7,7,1],[1,1,1,1],'VALID')
+    return pool_avg(data,7,1,'VALID')
 
-b1 = block1(pool1)
-b2 = block2(b1)
-b3 = block3(b2)
-b4 = block4(b3)
-b5 = block5(b4)
+def my_model(data,num_filters=64,filter_size=7,padding='SAME',strides=2):
+
+    conv1=conv_layer(data,num_filters,filter_size,strides)
+    pool1=pool_max_2x2(conv1)
+    b1 = block1(pool1)
+    b2 = block2(b1)
+    b3 = block3(b2)
+    b4 = block4(b3)
+    b5 = block5(b4)
+
+    return b5
 
 
 
+sess=tf.InteractiveSession()
+# load image
+img=Image.open("img.tif")
+# convetir image to tensor
+data=img_to_tensor(img)
+# resizing the image
+# data=tf.image.resize_images(data,[256,256])
+# get img dimension
+img_dimension=tf.shape(data).eval()
+print("--input image--\n",img_dimension)
+# get image height,width,channels
+height,width,channels=img_dimension
+# classes
+classes=["agricultural","airplane","baseballdiamond","beach","buildings","chaparral","denseresidential",
+           "forest","freeway","golfcourse","harbor","intersection","mediumresidential","mobilehomepark","overpass","parkinglot","river","runway","sparseresidential","storagetanks","tenniscourt"]
+# number of classes
+num_classes=len(classes)
+x=tf.placeholder(tf.float32,shape=[height*width*channels])
+y=tf.placeholder(tf.float32,shape=[None,num_classes])
+
+
+resnet50= my_model(data)
 sess.run(tf.global_variables_initializer())
-result=sess.run(b1)
-print(tf.shape(result).eval())
-result=sess.run(b2)
-print(tf.shape(result).eval())
-result=sess.run(b3)
-print(tf.shape(result).eval())
-result=sess.run(b4)
-print(tf.shape(result).eval())
-result=sess.run(b5)
+
+result=sess.run(resnet50)
 print(tf.shape(result).eval())
 sess.close()
