@@ -10,7 +10,7 @@ def datSetGenerator(path):
     labels = []
     for classe in classes:
         for filename in glob.glob(path+'/'+classe+'/*.tif'): #assuming gif
-            image_list.append(tf.convert_to_tensor(np.asarray(Image.open(filename),np.float32)))
+            image_list.append(np.asarray(Image.open(filename),np.float32))
             label=np.zeros(len(classes),dtype=int)
             label[classes.index(classe)]=1.
             labels.append(label)
