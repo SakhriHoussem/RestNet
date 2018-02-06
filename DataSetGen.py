@@ -44,19 +44,16 @@ def imagesGen(path):
     dataset = tf.data.Dataset.from_tensor_slices(filenames)
     return dataset.map(_parse_function)
 
-"""
-path = "C:/Users/shous/Desktop/UCMerced_LandUse/Images/"
 
+if __name__ == '__main__':
 
+    path = "C:/Users/shous/Desktop/UCMerced_LandUse/Images/"
+    dataset,labels,classes = DataSetGen(path)
 
+    print("classes------------------------------------------------")
+    print(classes)
+    print("labels------------------------------------------------")
+    print(labels)
+    print("dataset ------------------------------------------------")
+    print(dataset)
 
-dataset,labels,classes = DataSetGen(path)
-print("classes------------------------------------------------")
-print(classes)
-print("labels------------------------------------------------")
-print(labels)
-
-print("dataset ------------------------------------------------")
-print(dataset)
-
-"""
