@@ -266,7 +266,7 @@ def block1(data,num_filters=64):
                           |
                          \/
     """
-    print("BLOCK1 #########################")
+    print("BLOCK1 -----------------------------------")
     conv_1=stepConvConv(data,num_filters)
     conv_2=conv_layer(data,num_filters*4,1,1,padding="VALID",use_bias=False,use_relu=False)
     return tf.add(conv_1,conv_2)
@@ -352,7 +352,7 @@ def blockend(data,num_filters=64):
     return tf.nn.relu(tf.add(conv_1, conv_2))
 
 def block2(data,num_filters=64):
-    print("BLOCK2 #########################")
+    print("BLOCK2 -----------------------------------")
     conv=stepConvConv(data,num_filters)
     data=tf.nn.relu(tf.add(conv, data))
     conv=stepConvConv(data,num_filters)
@@ -360,7 +360,7 @@ def block2(data,num_filters=64):
     return blockend(data,num_filters*2)
 
 def block3(data,num_filters=128):
-    print("BLOCK3 #########################")
+    print("BLOCK3 -----------------------------------")
     conv=stepConvConv(data,num_filters)
     data=tf.nn.relu(tf.add(conv, data))
     conv=stepConvConv(data,num_filters)
@@ -369,7 +369,7 @@ def block3(data,num_filters=128):
     data=tf.nn.relu(tf.add(conv, data))
     return blockend(data,num_filters*2)
 def block4(data,num_filters=256):
-    print("BLOCK4 #########################")
+    print("BLOCK4 -----------------------------------")
     conv=stepConvConv(data,num_filters)
     data=tf.nn.relu(tf.add(conv, data))
     conv=stepConvConv(data,num_filters)
@@ -382,7 +382,7 @@ def block4(data,num_filters=256):
     data=tf.nn.relu(tf.add(conv, data))
     return blockend(data,num_filters*2)
 def block5(data,num_filters=512):
-    print("BLOCK5 #########################")
+    print("BLOCK5 -----------------------------------")
     conv=stepConvConv(data,num_filters)
     data=tf.nn.relu(tf.add(conv, data))
     conv=stepConvConv(data,num_filters)
@@ -390,8 +390,10 @@ def block5(data,num_filters=512):
     return pool_avg(data,7,1,'VALID')
 
 def fc_layer(data,num_classes=21):
-    print("FC LAYER #########################")
+    print("FC LAYER -----------------------------------")
     n,height,width,channels=tf.shape(data).eval()
+    print("---fc size---\n",height,width,channels)
+
     data=tf.reshape(data,[-1,height*width*channels])
     # generate weigh [kernal size,kernal size,channel,number of filters]
     w=weight_generater([height*width*channels,num_classes])
@@ -438,7 +440,7 @@ data,labels,classes=datSetGenerator(path)
 # get image height,width,channels
 #n=len(data)
 n,height,width,channels=tf.shape(data).eval()
-print("--input image--\n",height,width,channels)
+print("--Input image--\n",height,width,channels)
 
 
 # number of classes
@@ -461,19 +463,19 @@ print("we have ",weights," weights",bias," bias  ------------")
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     file=tf.summary.FileWriter("graph/",sess.graph)
-    for _ in range(100):
+    for _ in range(1):
         """
         batched_dataset=data.batch(4)
         iterator=batched_dataset.make_one_shot_iterator()
         next_element=iterator.get_next()
         print(tf.shape(next_element).eval())
         """
-        print(_,"-- train : ",sess.run(train,feed_dict={x:data,y:labels}))
+        print(_,"-- Train : ",sess.run(train,feed_dict={x:data,y:labels}))
 
-    print("\n\nlogits of model : \n\n",sess.run(logits,feed_dict={x:data[155],y:labels[155]}))
-    print("softmax of model : \n\n",sess.run(softmax,feed_dict={x:data[155],y:labels[155]}))
-    print("cost : ",sess.run(cost,feed_dict={x:data[155],y:labels[155]}))
-    print("acc : ",sess.run(acc,feed_dict={x:data[155],y:labels[155]}))
+    print("\n\nLogits of model : \n\n",sess.run(logits,feed_dict={x:data,y:labels}))
+    print("Softmax of model : \n\n",sess.run(softmax,feed_dict={x:data,y:labels}))
+    print("Cost : ",sess.run(cost,feed_dict={x:data,y:labels}))
+    print("Accuracy  : ",sess.run(acc,feed_dict={x:data,y:labels}))
 
 print("--- %s seconds ---" % (time.time() - start_time))
 sess.close()
