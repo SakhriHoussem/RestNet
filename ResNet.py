@@ -3,9 +3,11 @@ import numpy as np
 import cv2
 import time
 from dataSetGenerator import datSetGenerator
+import DataSetGen as dg
 
 start_time=time.time()
-
+weights=0
+bias=0
 def img_to_tensor(img):
     return tf.convert_to_tensor(np.asarray(img,np.float32),np.float32)
 
@@ -34,25 +36,183 @@ def conv_layer(data,num_filters,filter_size,strides=1,padding="SAME",use_bias=Tr
         height,width,channels=tf.shape(data).eval()
     elif len(tf.shape(data).eval())==4 :
         n,height,width,channels=tf.shape(data).eval()
+    print("--conv size--\n",height,width,channels)
     # generate weigh [kernal size,kernal size,channel,number of filters]
     w=weight_generater([filter_size,filter_size,channels,num_filters])
+    global weights
+    weights += 1
     # for each filter W has his  specific bias
     b=bias_generater(num_filters)
     #reshape the input picture
     data=tf.reshape(data,[-1,height,width,channels])
     conv=conv2d(data,w,strides,padding)
-    if use_bias: conv=tf.add(conv,b)
+
+    if use_bias:
+        global bias
+        bias +=1
+        conv=tf.add(conv,b)
     batchNorm_layer()
     scale_layer()
     if use_relu: return tf.nn.relu(conv)
     return conv
 
 def stepConvConv(data,num_filters=64,filter_size=1,strides=1):
+    """
+    :param data:
+    :param num_filters:
+    :param filter_size:
+    :param strides:
+    :return:
+                          input
+                            |
+               ----------------------------
+              |                           |
+             \/                          \/
+        +------------+              +------------+
+          conv                       conv
+          num_filters 64             num_filters 64*4
+          filter_size 1              filter_size 1
+          padding 0                  padding 0
+          stride 1                   stride 1
+          False                      False
+        +------------+              +------------+
+          BatchNorm                  BatchNorm
+          True                       True
+        +------------+              +------------+
+          Scale                      Scale
+          True                       True
+        +------------+              +------------+
+          relu                       relu
+        +------------+              +------------+
+              |                           |
+             \/                           |
+        +------------+                    |
+          conv                            |
+          num_filters 64                  |
+          filter_size 3                   |
+          padding 1                       |
+          stride 1                        |
+          False                           |
+        +------------+                    |
+          BatchNorm                       |
+          True                            |
+        +------------+                    |
+          Scale                           |
+          True                            |
+        +------------+                    |
+          relu                            |
+        +------------+                    |
+              |                           |
+             \/                           |
+          +------------+                  |
+          conv                            |
+          num_filters 64*4                |
+          filter_size 1                   |
+          padding 0                       |
+          stride 1                        |
+          False                           |
+        +------------+                    |
+          BatchNorm                       |
+          True                            |
+        +------------+                    |
+          Scale                           |
+          True                            |
+        +------------+                    |
+          relu                            |
+        +------------+                    |
+              |                           |
+              ----------------------------
+                           |
+                          \/
+                    +------------+
+                         res
+                    +------------+
+                        relu
+                    +------------+
+                          |
+                         \/
+    """
     conv_1=conv_layer(data,num_filters,filter_size,strides,padding="VALID",use_bias=False)
     conv_2=conv_layer(conv_1,num_filters,3,strides,padding='SAME',use_bias=False)
     return conv_layer(conv_2,num_filters*4,filter_size,strides,padding="VALID",use_bias=False,use_relu=False)
 
 def stepConvConvConv(data,num_filters=128,filter_size=1,strides=1):
+    """
+
+    :param data:
+    :param num_filters:
+    :param filter_size:
+    :param strides:
+    :return:
+                          input
+                            |
+               ----------------------------
+              |                           |
+             \/                          \/
+        +------------+              +------------+
+          conv                       conv
+          num_filters 128            num_filters 128*4
+          filter_size 1              filter_size 1
+          padding 0                  padding 0
+          stride 2                   stride 1
+          False                      False
+        +------------+              +------------+
+          BatchNorm                  BatchNorm
+          True                       True
+        +------------+              +------------+
+          Scale                      Scale
+          True                       True
+        +------------+              +------------+
+          relu                       relu
+        +------------+              +------------+
+              |                           |
+             \/                           |
+        +------------+                    |
+          conv                            |
+          num_filters 128                 |
+          filter_size 3                   |
+          padding 1                       |
+          stride 1                        |
+          False                           |
+        +------------+                    |
+          BatchNorm                       |
+          True                            |
+        +------------+                    |
+          Scale                           |
+          True                            |
+        +------------+                    |
+          relu                            |
+        +------------+                    |
+              |                           |
+             \/                           |
+          +------------+                  |
+          conv                            |
+          num_filters 128*4               |
+          filter_size 1                   |
+          padding 0                       |
+          stride 1                        |
+          False                           |
+        +------------+                    |
+          BatchNorm                       |
+          True                            |
+        +------------+                    |
+          Scale                           |
+          True                            |
+        +------------+                    |
+          relu                            |
+        +------------+                    |
+              |                           |
+              ----------------------------
+                           |
+                          \/
+                    +------------+
+                         res
+                    +------------+
+                        relu
+                    +------------+
+                          |
+                         \/
+    """
     conv_1=conv_layer(data,num_filters,filter_size,2,padding="VALID",use_bias=False)
     conv_2=conv_layer(conv_1,num_filters,3,strides,padding='SAME',use_bias=False)
     return conv_layer(conv_2,num_filters*4,filter_size,strides,padding="VALID",use_bias=False,use_relu=False)
@@ -71,39 +231,39 @@ def blockend(data,num_filters=64):
 def block2(data,num_filters=64):
     print("BLOCK2 #########################")
     conv=stepConvConv(data,num_filters)
-    data= tf.nn.relu(tf.add(conv, data))
+    data=tf.nn.relu(tf.add(conv, data))
     conv=stepConvConv(data,num_filters)
-    data= tf.nn.relu(tf.add(conv, data))
+    data=tf.nn.relu(tf.add(conv, data))
     return blockend(data,num_filters*2)
 
 def block3(data,num_filters=128):
     print("BLOCK3 #########################")
     conv=stepConvConv(data,num_filters)
-    data= tf.nn.relu(tf.add(conv, data))
+    data=tf.nn.relu(tf.add(conv, data))
     conv=stepConvConv(data,num_filters)
-    data= tf.nn.relu(tf.add(conv, data))
+    data=tf.nn.relu(tf.add(conv, data))
     conv=stepConvConv(data,num_filters)
-    data= tf.nn.relu(tf.add(conv, data))
+    data=tf.nn.relu(tf.add(conv, data))
     return blockend(data,num_filters*2)
 def block4(data,num_filters=256):
     print("BLOCK4 #########################")
     conv=stepConvConv(data,num_filters)
-    data= tf.nn.relu(tf.add(conv, data))
+    data=tf.nn.relu(tf.add(conv, data))
     conv=stepConvConv(data,num_filters)
-    data= tf.nn.relu(tf.add(conv, data))
+    data=tf.nn.relu(tf.add(conv, data))
     conv=stepConvConv(data,num_filters)
-    data= tf.nn.relu(tf.add(conv, data))
+    data=tf.nn.relu(tf.add(conv, data))
     conv=stepConvConv(data,num_filters)
-    data= tf.nn.relu(tf.add(conv, data))
+    data=tf.nn.relu(tf.add(conv, data))
     conv=stepConvConv(data,num_filters)
-    data= tf.nn.relu(tf.add(conv, data))
+    data=tf.nn.relu(tf.add(conv, data))
     return blockend(data,num_filters*2)
 def block5(data,num_filters=512):
     print("BLOCK5 #########################")
     conv=stepConvConv(data,num_filters)
-    data= tf.nn.relu(tf.add(conv, data))
+    data=tf.nn.relu(tf.add(conv, data))
     conv=stepConvConv(data,num_filters)
-    data= tf.nn.relu(tf.add(conv, data))
+    data=tf.nn.relu(tf.add(conv, data))
     return pool_avg(data,7,1,'VALID')
 
 def fc_layer(data,num_classes=21):
@@ -146,38 +306,51 @@ label=[0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 """
 
 # Generate datSets
-path="C:/Users/shous/Desktop/UCMerced_LandUse/Images/"
+path = "C:/Users/shous/Desktop/UCMerced_LandUse - train/Images/"
+
+#path="C:/Users/shous/Desktop/UCMerced_LandUse/Images/"
 data,labels,classes=datSetGenerator(path)
 
+
 # get image height,width,channels
-height,width,channels=data[1].shape
+#n=len(data)
+n,height,width,channels=tf.shape(data).eval()
 print("--input image--\n",height,width,channels)
+
 
 # number of classes
 num_classes=len(classes)
 
-x=tf.placeholder(tf.float32,shape=[height,width,channels])
-y=tf.placeholder(tf.float32,shape=[num_classes])
+x=tf.placeholder(tf.float32,shape=[n,height,width,channels])
+y=tf.placeholder(tf.float32,shape=[n,num_classes])
 
 logits=my_model(x,num_classes)
 softmax=tf.nn.softmax(logits)
 
-cost=tf.reduce_mean(tf.square(softmax - labels[0]))
-train=tf.train.GradientDescentOptimizer(0.005).minimize(cost)
+cost=tf.reduce_mean(tf.square(softmax - y))
+train=tf.train.GradientDescentOptimizer(0.05).minimize(cost)
 
-
-correct_prediction=tf.equal(tf.argmax(softmax),tf.argmax(labels[0]))
+correct_prediction=tf.equal(tf.argmax(softmax),tf.argmax(y))
 acc=tf.reduce_mean(tf.cast(correct_prediction,tf.float32))
+
+print("we have ",weights," weights",bias," bias  ------------")
 
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     file=tf.summary.FileWriter("graph/",sess.graph)
-    print("logits of model in : \n\n",sess.run(logits,feed_dict={x:data[0]}))
-    print("softmax of model in : \n\n",sess.run(softmax,feed_dict={x:data[0]}))
-    print(" train : ",sess.run(train,feed_dict={x:data[0]}))
-    print("cost : ",sess.run(cost,feed_dict={x:data[0]}))
-    print("acc : ",sess.run(acc,feed_dict={x:data[0]}))
+    for _ in range(100):
+        """
+        batched_dataset=data.batch(4)
+        iterator=batched_dataset.make_one_shot_iterator()
+        next_element=iterator.get_next()
+        print(tf.shape(next_element).eval())
+        """
+        print(_,"-- train : ",sess.run(train,feed_dict={x:data,y:labels}))
+
+    print("\n\nlogits of model : \n\n",sess.run(logits,feed_dict={x:data[155],y:labels[155]}))
+    print("softmax of model : \n\n",sess.run(softmax,feed_dict={x:data[155],y:labels[155]}))
+    print("cost : ",sess.run(cost,feed_dict={x:data[155],y:labels[155]}))
+    print("acc : ",sess.run(acc,feed_dict={x:data[155],y:labels[155]}))
 
 print("--- %s seconds ---" % (time.time() - start_time))
-
 sess.close()
