@@ -4,7 +4,7 @@ Rest-Net test Model  From http://ethereon.github.io/netscope/#/gist/db945b393d40
 
         --input image--
          [256 256   3]
-         
+               ||
         [  1  64  64 256]
         [  1  32  32 512]
         [   1   16   16 1024]
