@@ -63,6 +63,140 @@ def stepConvConv(data,num_filters=64,filter_size=1,strides=1):
     :param filter_size:
     :param strides:
     :return:
+
+            input
+              |
+             \/
+        +------------+
+          conv
+          num_filters 64
+          filter_size 1
+          padding 0
+          stride 1
+          False
+        +------------+
+          BatchNorm
+          True
+        +------------+
+          Scale
+          True
+        +------------+
+          relu
+        +------------+
+              |
+             \/
+        +------------+
+          conv
+          num_filters 64
+          filter_size 3
+          padding 1
+          stride 1
+          False
+        +------------+
+          BatchNorm
+          True
+        +------------+
+          Scale
+          True
+        +------------+
+          relu
+        +------------+
+              |
+             \/
+          +------------+
+          conv
+          num_filters 64*4
+          filter_size 1
+          padding 0
+          stride 1
+          False
+        +------------+
+          BatchNorm
+        +------------+
+          Scale
+          True
+        +------------+
+              |
+             \/
+    """
+    conv_1=conv_layer(data,num_filters,filter_size,strides,padding="VALID",use_bias=False)
+    conv_2=conv_layer(conv_1,num_filters,3,strides,padding='SAME',use_bias=False)
+    return conv_layer(conv_2,num_filters*4,filter_size,strides,padding="VALID",use_bias=False,use_relu=False)
+
+def stepConvConvConv(data,num_filters=128,filter_size=1,strides=1):
+    """
+
+    :param data:
+    :param num_filters:
+    :param filter_size:
+    :param strides:
+    :return:
+
+            input
+              |
+             \/
+        +------------+
+          conv
+          num_filters 128
+          filter_size 1
+          padding 0
+          stride 2
+          False
+        +------------+
+          BatchNorm
+          True
+        +------------+
+          Scale
+          True
+        +------------+
+          relu
+        +------------+
+              |
+             \/
+        +------------+
+          conv
+          num_filters 128
+          filter_size 3
+          padding 1
+          stride 1
+          False
+        +------------+
+          BatchNorm
+          True
+        +------------+
+          Scale
+          True
+        +------------+
+          relu
+        +------------+
+              |
+             \/
+          +------------+
+          conv
+          num_filters 128*4
+          filter_size 1
+          padding 0
+          stride 1
+          False
+        +------------+
+          BatchNorm
+        +------------+
+          Scale
+          True
+        +------------+
+              |
+             \/
+    """
+    conv_1=conv_layer(data,num_filters,filter_size,2,padding="VALID",use_bias=False)
+    conv_2=conv_layer(conv_1,num_filters,3,strides,padding='SAME',use_bias=False)
+    return conv_layer(conv_2,num_filters*4,filter_size,strides,padding="VALID",use_bias=False,use_relu=False)
+
+def block1(data,num_filters=64):
+    """
+
+    :param data:
+    :param num_filters:
+    :return:
                           input
                             |
                ----------------------------
@@ -70,7 +204,7 @@ def stepConvConv(data,num_filters=64,filter_size=1,strides=1):
              \/                          \/
         +------------+              +------------+
           conv                       conv
-          num_filters 64             num_filters 64*4
+          num_filters 128            num_filters 128*4
           filter_size 1              filter_size 1
           padding 0                  padding 0
           stride 1                   stride 1
@@ -88,7 +222,7 @@ def stepConvConv(data,num_filters=64,filter_size=1,strides=1):
              \/                           |
         +------------+                    |
           conv                            |
-          num_filters 64                  |
+          num_filters 128                 |
           filter_size 3                   |
           padding 1                       |
           stride 1                        |
@@ -106,7 +240,7 @@ def stepConvConv(data,num_filters=64,filter_size=1,strides=1):
              \/                           |
           +------------+                  |
           conv                            |
-          num_filters 64*4                |
+          num_filters 128*4               |
           filter_size 1                   |
           padding 0                       |
           stride 1                        |
@@ -132,17 +266,17 @@ def stepConvConv(data,num_filters=64,filter_size=1,strides=1):
                           |
                          \/
     """
-    conv_1=conv_layer(data,num_filters,filter_size,strides,padding="VALID",use_bias=False)
-    conv_2=conv_layer(conv_1,num_filters,3,strides,padding='SAME',use_bias=False)
-    return conv_layer(conv_2,num_filters*4,filter_size,strides,padding="VALID",use_bias=False,use_relu=False)
+    print("BLOCK1 #########################")
+    conv_1=stepConvConv(data,num_filters)
+    conv_2=conv_layer(data,num_filters*4,1,1,padding="VALID",use_bias=False,use_relu=False)
+    return tf.add(conv_1,conv_2)
 
-def stepConvConvConv(data,num_filters=128,filter_size=1,strides=1):
+def blockend(data,num_filters=64):
+
     """
 
     :param data:
     :param num_filters:
-    :param filter_size:
-    :param strides:
     :return:
                           input
                             |
@@ -213,17 +347,6 @@ def stepConvConvConv(data,num_filters=128,filter_size=1,strides=1):
                           |
                          \/
     """
-    conv_1=conv_layer(data,num_filters,filter_size,2,padding="VALID",use_bias=False)
-    conv_2=conv_layer(conv_1,num_filters,3,strides,padding='SAME',use_bias=False)
-    return conv_layer(conv_2,num_filters*4,filter_size,strides,padding="VALID",use_bias=False,use_relu=False)
-
-def block1(data,num_filters=64):
-    print("BLOCK1 #########################")
-    conv_1=stepConvConv(data,num_filters)
-    conv_2=conv_layer(data,num_filters*4,1,1,padding="VALID",use_bias=False,use_relu=False)
-    return tf.add(conv_1,conv_2)
-
-def blockend(data,num_filters=64):
     conv_1=conv_layer(data,num_filters*4,1,2,padding="VALID",use_bias=False,use_relu=False)
     conv_2=stepConvConvConv(data,num_filters,filter_size=1,strides=1)
     return tf.nn.relu(tf.add(conv_1, conv_2))
