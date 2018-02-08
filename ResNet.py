@@ -1,13 +1,12 @@
 import tensorflow as tf
 import numpy as np
-import cv2
 import time
 from dataSetGenerator import datSetGenerator
-import DataSetGen as dg
 
 start_time=time.time()
 weights=0
 bias=0
+
 def img_to_tensor(img):
     return tf.convert_to_tensor(np.asarray(img,np.float32),np.float32)
 
@@ -15,7 +14,7 @@ def weight_generater(shape):
     return tf.Variable(tf.truncated_normal(shape,stddev=0.05),name="Weight")
 
 def bias_generater(shape):
-    return tf.Variable(tf.truncated_normal(shape=[shape]),name='bias')
+    return tf.Variable(tf.zeros([shape]),name='bias')
 
 def conv2d(x,W,strides=1,padding='SAME'):
     return tf.nn.conv2d(x,W,[1,strides,strides,1],padding='SAME')
@@ -32,10 +31,10 @@ def scale_layer(): print("-----Scale-----")
 
 def conv_layer(data,num_filters,filter_size,strides=1,padding="SAME",use_bias=True,use_relu=True):
     # input shape [W,H,channels]
-    if len(tf.shape(data).eval())==3 :
-        height,width,channels=tf.shape(data).eval()
-    elif len(tf.shape(data).eval())==4 :
-        n,height,width,channels=tf.shape(data).eval()
+    if len(data.get_shape().as_list())==3 :
+        height,width,channels=data.get_shape().as_list()
+    elif len(data.get_shape().as_list())==4 :
+        n,height,width,channels=data.get_shape().as_list()
     print("--conv size--\n",height,width,channels)
     # generate weigh [kernal size,kernal size,channel,number of filters]
     w=weight_generater([filter_size,filter_size,channels,num_filters])
@@ -391,7 +390,7 @@ def block5(data,num_filters=512):
 
 def fc_layer(data,num_classes=21):
     print("FC LAYER -----------------------------------")
-    n,height,width,channels=tf.shape(data).eval()
+    n,height,width,channels=data.get_shape().as_list()
     print("---fc size---\n",height,width,channels)
 
     data=tf.reshape(data,[-1,height*width*channels])
@@ -404,31 +403,13 @@ def fc_layer(data,num_classes=21):
 
 def my_model(data,num_classes=21,num_filters=64,filter_size=7,padding='SAME',strides=2):
     conv_1=conv_layer(data,num_filters,filter_size,strides)
-    pool_1=pool_max_2x2(conv_1)
+    pool_1=pool_max_2x2(conv_1,ksize=3)
     b_1=block1(pool_1)
     b_2=block2(b_1)
     b_3=block3(b_2)
     b_4=block4(b_3)
     b_5=block5(b_4)
     return tf.nn.relu(fc_layer(b_5,num_classes))
-
-sess=tf.InteractiveSession()
-
-"""
-# load image
-img=cv2.imread("img.tif")
-# convetir image to tensor
-data=img_to_tensor(img)
-# resizing the image
-data=tf.image.resize_images(data,[256,256])
-# get img dimension
-img_shape=tf.shape(data).eval()
-print("--input image--\n",img_shape)
-# classes
-classes=["agricultural","airplane","baseballdiamond","beach","buildings","chaparral","denseresidential",
-           "forest","freeway","golfcourse","harbor","intersection","mediumresidential","mobilehomepark","overpass","parkinglot","river","runway","sparseresidential","storagetanks","tenniscourt"]
-label=[0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-"""
 
 # Generate datSets
 path = "C:/Users/shous/Desktop/UCMerced_LandUse - train/Images/"
@@ -438,21 +419,21 @@ data,labels,classes=datSetGenerator(path)
 
 
 # get image height,width,channels
-#n=len(data)
-n,height,width,channels=tf.shape(data).eval()
+n,height,width,channels=data.shape
 print("--Input image--\n",height,width,channels)
 
 
 # number of classes
 num_classes=len(classes)
 
-x=tf.placeholder(tf.float32,shape=[n,height,width,channels])
-y=tf.placeholder(tf.float32,shape=[n,num_classes])
+x=tf.placeholder(tf.float32,[None,height,width,channels])
+y=tf.placeholder(tf.float32,[None,num_classes])
 
+#sess = tf.InteractiveSession()
 logits=my_model(x,num_classes)
 softmax=tf.nn.softmax(logits)
 
-cost=tf.reduce_mean(tf.square(softmax - y))
+cost=tf.reduce_mean(tf.abs(y - softmax))
 train=tf.train.GradientDescentOptimizer(0.05).minimize(cost)
 
 correct_prediction=tf.equal(tf.argmax(softmax),tf.argmax(y))
@@ -460,22 +441,22 @@ acc=tf.reduce_mean(tf.cast(correct_prediction,tf.float32))
 
 print("we have ",weights," weights",bias," bias  ------------")
 
+batch_size = 10
+iteration =10
+
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     file=tf.summary.FileWriter("graph/",sess.graph)
-    for _ in range(1):
-        """
-        batched_dataset=data.batch(4)
-        iterator=batched_dataset.make_one_shot_iterator()
-        next_element=iterator.get_next()
-        print(tf.shape(next_element).eval())
-        """
-        print(_,"-- Train : ",sess.run(train,feed_dict={x:data,y:labels}))
+    for _ in range(iteration):
+        indice = np.random.permutation(n)
+        for i in range(n):
+            min_batch = indice[i*batch_size:(i+1)*batch_size]
+            print(_,"-- Train : ",sess.run(train,feed_dict={x:data[min_batch],y:labels[min_batch]}))
 
-    print("\n\nLogits of model : \n\n",sess.run(logits,feed_dict={x:data,y:labels}))
-    print("Softmax of model : \n\n",sess.run(softmax,feed_dict={x:data,y:labels}))
+    #print("\n\nLogits of model : \n\n",sess.run(logits,feed_dict={x:data[0],y:labels[0]}))
+    #print("Softmax of model : \n\n",sess.run(softmax,feed_dict={x:data[0],y:labels[0]}))
     print("Cost : ",sess.run(cost,feed_dict={x:data,y:labels}))
     print("Accuracy  : ",sess.run(acc,feed_dict={x:data,y:labels}))
 
-print("--- %s seconds ---" % (time.time() - start_time))
+print("--- %s seconds ---" % (np.round(time.time() - start_time)))
 sess.close()
