@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 import time
 from dataSetGenerator import datSetGenerator
+import matplotlib.pyplot as plt
 
 start_time=time.time()
 weights=0
@@ -9,9 +10,20 @@ bias=0
 
 def img_to_tensor(img):
     return tf.convert_to_tensor(np.asarray(img,np.float32),np.float32)
-
-def weight_generater(shape):
-    return tf.Variable(tf.truncated_normal(shape,stddev=0.05),name="Weight")
+"""
+def weight_generater(shape,n):
+    return tf.get_variable("weight"+str(n), shape=shape, initializer=tf.contrib.layers.xavier_initializer())
+"""
+def weight_generater(shape, init_method='xavier', xavier_params = (None, None)):
+    if init_method == 'zeros':
+        return tf.Variable(tf.zeros(shape, dtype=tf.float32))
+    elif init_method == 'uniform':
+        return tf.Variable(tf.random_normal(shape, stddev=0.01, dtype=tf.float32))
+    else: #xavier
+        (fan_in, fan_out) = xavier_params
+        low = -4*np.sqrt(6.0/(fan_in + fan_out)) # {sigmoid:4, tanh:1}
+        high = 4*np.sqrt(6.0/(fan_in + fan_out))
+        return tf.Variable(tf.random_uniform(shape, minval=low, maxval=high, dtype=tf.float32))
 
 def bias_generater(shape):
     return tf.Variable(tf.zeros([shape]),name="Weight")
@@ -25,7 +37,7 @@ def pool_max(x,ksize=2,strides=2,padding='SAME'):
 def pool_avg(x,ksize=2,strides=2,padding='SAME'):
     return tf.nn.avg_pool(x,ksize=[1,ksize,ksize,1],strides=[1,strides,strides,1],padding=padding)
 
-def batchNorm_layer(inputs, is_training, decay = 0.999,epsilon = 1e-3):
+def batchNorm_layer(inputs, is_training, decay = 1e-5,epsilon = 1e-3):
 
     scale = tf.Variable(tf.ones(inputs.get_shape()[1:].as_list()))
     beta = tf.Variable(tf.zeros(inputs.get_shape()[1:].as_list()))
@@ -35,14 +47,42 @@ def batchNorm_layer(inputs, is_training, decay = 0.999,epsilon = 1e-3):
     if is_training:
         batch_mean, batch_var = tf.nn.moments(inputs,[0])
         train_mean = tf.assign(pop_mean,pop_mean * decay + batch_mean * (1 - decay))
-        train_var = tf.assign(pop_var,
-                              pop_var * decay + batch_var * (1 - decay))
+        train_var = tf.assign(pop_var,pop_var * decay + batch_var * (1 - decay))
         with tf.control_dependencies([train_mean, train_var]):
             return tf.nn.batch_normalization(inputs,batch_mean, batch_var, beta, scale, epsilon)
     else:
         return tf.nn.batch_normalization(inputs,pop_mean, pop_var, beta, scale, epsilon)
 
 def conv_layer(data,num_filters,filter_size,strides=1,padding="SAME",use_bias=True,use_relu=True):
+    """
+
+    :param data:
+    :param num_filters:
+    :param filter_size:
+    :param strides:
+    :param padding:
+    :param use_bias:
+    :param use_relu:
+    :return:
+            input
+              |
+             \/
+        +------------+
+          conv
+          num_filters
+          filter_size
+          padding
+          stride
+        +------------+
+          BatchNorm
+        +------------+
+          Scale
+        +------------+
+          relu
+        +------------+
+              |
+             \/
+    """
     # input shape [W,H,channels]
     if len(data.get_shape().as_list())==3 :
         height,width,channels=data.get_shape().as_list()
@@ -50,20 +90,21 @@ def conv_layer(data,num_filters,filter_size,strides=1,padding="SAME",use_bias=Tr
         n,height,width,channels=data.get_shape().as_list()
     print("--conv size--\n",height,width,channels)
     # generate weigh [kernal size,kernal size,channel,number of filters]
-    w=weight_generater([filter_size,filter_size,channels,num_filters])
+
     global weights
     weights += 1
+    w=weight_generater([filter_size,filter_size,channels,num_filters],xavier_params=(1,height*width*channels))
     # for each filter W has his  specific bias
     b=bias_generater(num_filters)
     #reshape the input picture
     data=tf.reshape(data,[-1,height,width,channels])
     conv=conv2d(data,w,strides,padding)
-
+    global bias
     if use_bias:
-        global bias
         bias +=1
         conv=tf.add(conv,b)
     conv = tf.add(batchNorm_layer(conv,True),b)
+    bias +=1
     if use_relu: return tf.nn.relu(conv)
     return conv
 
@@ -202,7 +243,7 @@ def stepConvConvConv(data,num_filters=128,filter_size=1,strides=1):
     conv_2=conv_layer(conv_1,num_filters,3,strides,padding='SAME',use_bias=False)
     return conv_layer(conv_2,num_filters*4,filter_size,strides,padding="VALID",use_bias=False,use_relu=False)
 
-def blockend(data,num_filters=64):
+def ResidualBlock(data,num_filters=64):
 
     """
     :param data:
@@ -368,7 +409,7 @@ def block2(data,num_filters=64):
     data=tf.nn.relu(tf.add(conv, data))
     conv=stepConvConv(data,num_filters)
     data=tf.nn.relu(tf.add(conv, data))
-    return blockend(data,num_filters*2)
+    return ResidualBlock(data,num_filters*2)
 
 def block3(data,num_filters=128):
     print("BLOCK3 -----------------------------------")
@@ -378,7 +419,7 @@ def block3(data,num_filters=128):
     data=tf.nn.relu(tf.add(conv, data))
     conv=stepConvConv(data,num_filters)
     data=tf.nn.relu(tf.add(conv, data))
-    return blockend(data,num_filters*2)
+    return ResidualBlock(data,num_filters*2)
 def block4(data,num_filters=256):
     print("BLOCK4 -----------------------------------")
     conv=stepConvConv(data,num_filters)
@@ -391,7 +432,7 @@ def block4(data,num_filters=256):
     data=tf.nn.relu(tf.add(conv, data))
     conv=stepConvConv(data,num_filters)
     data=tf.nn.relu(tf.add(conv, data))
-    return blockend(data,num_filters*2)
+    return ResidualBlock(data,num_filters*2)
 def block5(data,num_filters=512):
     print("BLOCK5 -----------------------------------")
     conv=stepConvConv(data,num_filters)
@@ -406,12 +447,14 @@ def fc_layer(data,num_classes=21):
     print("---fc size---\n",height,width,channels)
     data=tf.reshape(data,[-1,height*width*channels])
     # generate weigh [kernal size,kernal size,channel,number of filters]
-    w=weight_generater([height*width*channels,num_classes])
+    global weights
+    weights +=1
+    w=weight_generater([height*width*channels,num_classes],xavier_params=(1,height*width*channels))
     # for each filter W has his  specific bias
     b=bias_generater(num_classes)
     return tf.add(tf.matmul(data,w),b)
 
-def my_model(data,num_classes=21,num_filters=64,filter_size=7,padding='SAME',strides=2):
+def ResNet50(data,num_classes=21,num_filters=64,filter_size=7,padding='SAME',strides=2):
     conv_1=conv_layer(data,num_filters,filter_size,strides)
     pool_1=pool_max(conv_1,ksize=3)
     b_1=block1(pool_1)
@@ -420,8 +463,6 @@ def my_model(data,num_classes=21,num_filters=64,filter_size=7,padding='SAME',str
     b_4=block4(b_3)
     b_5=block5(b_4)
     return fc_layer(b_5,num_classes)
-
-
 
 if __name__ == '__main__':
 
@@ -444,15 +485,18 @@ if __name__ == '__main__':
     y=tf.placeholder(tf.float32,[None,num_classes])
 
     #sess = tf.InteractiveSession()
-    logits=my_model(x,num_classes)
+    logits=ResNet50(x,num_classes)
+    #logits = tf.nn.softmax(logits)
 
     # Define a loss function
-    #loss=tf.reduce_mean(tf.abs(y- logits))
-    loss = tf.nn.softmax_cross_entropy_with_logits_v2 (labels=y, logits=logits)
-
+    loss=tf.reduce_mean(tf.abs(y- logits))
+    #loss = tf.nn.softmax_cross_entropy_with_logits_v2 (labels=y, logits=logits)
+    #loss=tf.nn.l2_loss(logits - y)
     #loss = tf.reduce_mean(-tf.reduce_sum(y*tf.log(logits), reduction_indices=1))
 
-    train = tf.train.GradientDescentOptimizer(learning_rate=0.05).minimize(loss)
+    #train = tf.train.GradientDescentOptimizer(learning_rate=0.1).minimize(loss)
+    train = tf.train.MomentumOptimizer(learning_rate=0.1,momentum=0.9).minimize(loss)
+    #train = tf.train.AdadeltaOptimizer().minimize(loss)
 
     #correct_prediction=tf.equal(tf.argmax(softmax),tf.argmax(y))
     #acc=tf.reduce_mean(tf.cast(correct_prediction,tf.float32))
@@ -461,17 +505,18 @@ if __name__ == '__main__':
 
     batch_size = 5
     iteration = 4
-
+    errors=[]
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         file=tf.summary.FileWriter("graph/",sess.graph)
         for _ in range(iteration):
-            s = sess.run(loss,feed_dict={x:data,y:labels})
-            print("loss : ",s.shape,s)
             indice = np.random.permutation(n)
-            for i in range(n):
+            for i in range(n-batch_size): # error in 18
                 min_batch = indice[i*batch_size:(i+1)*batch_size]
-                curr_loss,_ = sess.run([loss, train], {x:data[min_batch], y:labels[min_batch]})
-                print("Iteration %d \n  loss: \n %s " % (i, curr_loss))
-
+                curr_loss,curr_train = sess.run([loss, train], {x:data[min_batch], y:labels[min_batch]})
+                print(_,"-Iteration %d\nloss:\n%s" % (i, curr_loss))
+                errors.append(curr_loss)
     print("--- %s seconds ---" % (np.round(time.time() - start_time)))
+    plt.plot(errors)
+    plt.xlabel('#epochs')
+    plt.ylabel('MSE')
