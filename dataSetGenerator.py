@@ -1,30 +1,28 @@
 import numpy as np
-import os
-import glob
-import time
+from os import listdir
+from glob import glob
+from time import time
 import cv2
 
-def datSetGenerator(path,img_size=224):
-    start_time = time.time()
-    classes = os.listdir(path)
+def dataSetGenerator(path,resize=False,resize_to=224):
+    start_time = time()
+    classes = listdir(path)
     image_list = []
     labels = []
     for classe in classes:
-        for filename in glob.glob(path+'/'+classe+'/*.tif'):
-            #image_list.append(cv2.imread(filename))
-            image_list.append(cv2.resize(cv2.imread(filename),(img_size, img_size)))
+        for filename in glob(path+'/'+classe+'/*.tif'):
+            if resize: image_list.append(cv2.resize(cv2.imread(filename),(resize_to, resize_to)))
+            else: image_list.append(cv2.imread(filename))
             label=np.zeros(len(classes))
             label[classes.index(classe)]=1
             labels.append(label)
-    print("\n --- dataSet generated in  %s seconds --- \n" % (np.round(time.time() - start_time)))
-    return np.array(image_list),np.array(labels),np.array(classes)
-
+    print("\n --- dataSet generated in  %s seconds --- \n" % (np.round(time() - start_time)))
+    return np.array(image_list,float),np.array(labels,float),np.array(classes)
 
 if __name__ == '__main__':
-
     # for testing the generator
-    path = "C:/Users/shous/Desktop/UCMerced_LandUse - train/Images/"
-    data,labels,classes = datSetGenerator(path)
-    print("\n dataSet classes :",classes)
-    print("\n data shape :",len(data.shape))
-    print("\n labels shape :",labels[9])
+    path = "C:/Users/shous/Desktop/UCMerced_LandUse/Images/"
+    data,labels,classes = dataSetGenerator(path,True)
+    print("\n dataSet classes :\n",*classes)
+    print("\n data shape :",data.shape)
+    print("\n label shape :",labels.shape)
