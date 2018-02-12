@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import time
-from dataSetGenerator import datSetGenerator
+from dataSetGenerator import dataSetGenerator
 import matplotlib.pyplot as plt
 
 start_time=time.time()
@@ -19,7 +19,7 @@ def weight_generater(shape, init_method='xavier', xavier_params = (None, None)):
         return tf.Variable(tf.zeros(shape, dtype=tf.float32))
     elif init_method == 'uniform':
         return tf.Variable(tf.random_normal(shape, stddev=0.01, dtype=tf.float32))
-    else: #xavier
+    else: # xavier
         (fan_in, fan_out) = xavier_params
         low = -4*np.sqrt(6.0/(fan_in + fan_out)) # {sigmoid:4, tanh:1}
         high = 4*np.sqrt(6.0/(fan_in + fan_out))
@@ -96,7 +96,7 @@ def conv_layer(data,num_filters,filter_size,strides=1,padding="SAME",use_bias=Tr
     w=weight_generater([filter_size,filter_size,channels,num_filters],xavier_params=(1,height*width*channels))
     # for each filter W has his  specific bias
     b=bias_generater(num_filters)
-    #reshape the input picture
+    # reshape the input picture
     data=tf.reshape(data,[-1,height,width,channels])
     conv=conv2d(data,w,strides,padding)
     global bias
@@ -468,15 +468,12 @@ if __name__ == '__main__':
 
     # Generate datSets
     path = "C:/Users/shous/Desktop/UCMerced_LandUse - train/Images/"
-
-    #path="C:/Users/shous/Desktop/UCMerced_LandUse/Images/"
-    data,labels,classes=datSetGenerator(path)
-
+    # path="C:/Users/shous/Desktop/UCMerced_LandUse/Images/"
+    data,labels,classes=dataSetGenerator(path)
 
     # get image height,width,channels
     n,height,width,channels=data.shape
     print("--Input image--\n",height,width,channels)
-
 
     # number of classes
     num_classes=len(classes)
@@ -484,39 +481,40 @@ if __name__ == '__main__':
     x=tf.placeholder(tf.float32,[None,height,width,channels])
     y=tf.placeholder(tf.float32,[None,num_classes])
 
-    #sess = tf.InteractiveSession()
+    # sess = tf.InteractiveSession()
     logits=ResNet50(x,num_classes)
-    #logits = tf.nn.softmax(logits)
+    # logits = tf.nn.softmax(logits)
 
     # Define a loss function
-    loss=tf.reduce_mean(tf.abs(y- logits))
-    #loss = tf.nn.softmax_cross_entropy_with_logits_v2 (labels=y, logits=logits)
-    #loss=tf.nn.l2_loss(logits - y)
-    #loss = tf.reduce_mean(-tf.reduce_sum(y*tf.log(logits), reduction_indices=1))
+    loss=tf.reduce_mean(tf.abs(y - logits))
+    # loss = tf.nn.softmax_cross_entropy_with_logits_v2 (labels=y, logits=logits)
+    # loss=tf.nn.l2_loss(logits - y)
+    # loss = tf.reduce_mean(-tf.reduce_sum(y*tf.log(logits), reduction_indices=1))
 
-    #train = tf.train.GradientDescentOptimizer(learning_rate=0.1).minimize(loss)
+    # train = tf.train.GradientDescentOptimizer(learning_rate=0.1).minimize(loss)
     train = tf.train.MomentumOptimizer(learning_rate=0.1,momentum=0.9).minimize(loss)
-    #train = tf.train.AdadeltaOptimizer().minimize(loss)
+    # train = tf.train.AdadeltaOptimizer().minimize(loss)
 
-    #correct_prediction=tf.equal(tf.argmax(softmax),tf.argmax(y))
-    #acc=tf.reduce_mean(tf.cast(correct_prediction,tf.float32))
+    # correct_prediction=tf.equal(tf.argmax(softmax),tf.argmax(y))
+    # acc=tf.reduce_mean(tf.cast(correct_prediction,tf.float32))
 
-    print("we have ",weights," weights",bias," bias  ------------")
+    print("\nwe have ",weights," weights",bias," bias  ------------")
 
-    batch_size = 5
+    batch_size = 10
     iteration = 4
     errors=[]
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         file=tf.summary.FileWriter("graph/",sess.graph)
         for _ in range(iteration):
+            print("*******************  ",_,"  *******************")
             indice = np.random.permutation(n)
-            for i in range(n-batch_size): # error in 18
+            for i in range(batch_size-1): # error in 18
                 min_batch = indice[i*batch_size:(i+1)*batch_size]
                 curr_loss,curr_train = sess.run([loss, train], {x:data[min_batch], y:labels[min_batch]})
                 print(_,"-Iteration %d\nloss:\n%s" % (i, curr_loss))
                 errors.append(curr_loss)
     print("--- %s seconds ---" % (np.round(time.time() - start_time)))
     plt.plot(errors)
-    plt.xlabel('#epochs')
+    plt.xlabel('# epochs')
     plt.ylabel('MSE')
