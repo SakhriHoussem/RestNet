@@ -451,7 +451,7 @@ def fc_layer(data, num_classes=21):
     w=weight_generater([height*width*channels, num_classes], xavier_params=(1, height*width*channels))
     # for each filter W has his  specific bias
     b=bias_generater(num_classes)
-    return tf.add(tf.matmul(data, w), b)
+    return tf.add(tf.matmul(data, w), b,name='logits')
 
 def ResNet50(data, num_classes=21, num_filters=64, filter_size=7, padding='SAME', strides=2):
     conv_1 = conv_layer(data, num_filters, filter_size, strides)
@@ -483,9 +483,12 @@ if __name__ == '__main__':
     # sess = tf.InteractiveSession()
     logits=ResNet50(x, num_classes)
     # logits = tf.nn.softmax(logits)
+    tf.add_to_collection('logits_op',logits)
 
     # Define a loss function
     loss=tf.reduce_mean(tf.abs(y-logits),name='Loss')
+    tf.add_to_collection('loss_op',loss)
+
     # loss = tf.nn.softmax_cross_entropy_with_logits_v2 (labels=y, logits=logits)
     # loss=tf.nn.l2_loss(logits - y)
     # loss = tf.reduce_mean(-tf.reduce_sum(y*tf.log(logits), reduction_indices=1))
