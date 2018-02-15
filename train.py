@@ -2,7 +2,7 @@ import tensorflow as tf
 from dataSetGenerator import dataSetGenerator
 import numpy as np
 import matplotlib.pyplot as plt
-from os import path
+from os import path as PATH
 from ResNet import ResNet50
 
 
@@ -21,8 +21,7 @@ save_file ="dataSaved"
 batche_num, height, width, channels = data.shape
 print("Input image size :", height, width, channels)
 with tf.Session() as sess:
-
-    if path.isdir(save_dir) and path.isfile(save_dir+save_file+".meta") and path.isfile(save_dir+"checkpoint"):
+    if PATH.isdir(save_dir) and PATH.isfile(save_dir+save_file+".meta") and PATH.isfile(save_dir+"checkpoint"):
         print("file exist")
         saver = tf.train.import_meta_graph(save_dir+save_file+".meta")
         saver.restore(sess, tf.train.latest_checkpoint('Save/'))
@@ -38,7 +37,6 @@ with tf.Session() as sess:
         loss = tf.get_collection('loss_op')#vrai
         logists = tf.get_collection('logits_op')#vrai
         errors = tf.get_collection('errors')#vrai
-        print(errors)
         #sess.run(tf.global_variables_initializer())
     else:
         print("file non exist")
@@ -66,7 +64,6 @@ with tf.Session() as sess:
         tf.add_to_collection('train_op',train)
 
         # train = tf.train.AdadeltaOptimizer().minimize(loss)
-
         # correct_prediction=tf.equal(tf.argmax(softmax), tf.argmax(y))
         # acc=tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
         sess.run(tf.global_variables_initializer())
@@ -74,18 +71,19 @@ with tf.Session() as sess:
         tf.add_to_collection('errors',errors)
 
     print("training start")
-
     for _ in range(epochs):
             print("*******************  ", _, "  *******************")
             indice = np.random.permutation(batche_num)
             for i in range(batch_size-1):
                 min_batch = indice[i*batch_size:(i+1)*batch_size]
                 curr_loss, curr_train = sess.run([loss, train], {x: data[min_batch], y: labels[min_batch]})
-                print(_, "-Iteration %d loss:\n%s" % (i, curr_loss))
+                print("Iteration %d loss:\n%s" % (i, curr_loss))
                 errors.append(curr_loss)
+    print("trainig finished")
     #tf.add_to_collection('errors',errors)
     saver = tf.train.Saver()
     saver.save(sess, save_dir+save_file)
+    print("file saved in :",save_dir)
     plt.plot(errors, label="loss")
     plt.xlabel('# epochs')
     plt.ylabel('MSE')
