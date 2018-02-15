@@ -510,6 +510,7 @@ if __name__ == '__main__':
     batch_size = 10
     epochs = 1
     errors = []
+
     with tf.Session() as sess:
         saver = tf.train.Saver()
         sess.run(tf.global_variables_initializer())
@@ -522,6 +523,7 @@ if __name__ == '__main__':
                 curr_loss, curr_train = sess.run([loss, train], {x: data[min_batch], y: labels[min_batch]})
                 print(_, "-Iteration %d\nloss:\n%s" % (i, curr_loss))
                 errors.append(curr_loss)
+        tf.add_to_collection('errors',errors)
         saver.save(sess, "Save/dataSaved")
     print("--- model trained in %s seconds ---" % (np.round(time.time() - start_time)))
     plt.plot(errors, label="loss")
