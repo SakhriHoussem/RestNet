@@ -7,7 +7,7 @@ from os import makedirs
 from ResNet import ResNet50
 from colors import *
 
-def train(path="/",batch_size = 10,epochs = 30,save_dir = "Saved/",save_file ="dataSaved",sess=tf.Session()):
+def training(path="/",batch_size = 10,epochs = 30,save_dir = "Saved/",save_file ="dataSaved",sess=tf.Session()):
 
     # get image height, width, channels
     batche_num, height, width, channels = data.shape
@@ -38,7 +38,7 @@ def train(path="/",batch_size = 10,epochs = 30,save_dir = "Saved/",save_file ="d
 
             # sess = tf.InteractiveSession()
             logits=ResNet50(x, num_classes)
-            # logits = tf.nn.softmax(logits)
+            softmax = tf.nn.softmax(logits)
             tf.add_to_collection('logits_op',logits)
 
             # Define a loss function
@@ -54,13 +54,17 @@ def train(path="/",batch_size = 10,epochs = 30,save_dir = "Saved/",save_file ="d
             tf.add_to_collection('train_op',train)
 
             # train = tf.train.AdadeltaOptimizer().minimize(loss)
-            # correct_prediction=tf.equal(tf.argmax(softmax), tf.argmax(y))
-            # acc=tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+            correct_prediction=tf.equal(tf.argmax(softmax), tf.argmax(y))
+            tf.add_to_collection('prediction_op',correct_prediction)
+
+            acc=tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+            tf.add_to_collection('acc_op',acc)
+
             sess.run(tf.global_variables_initializer())
             errors=[]
             tf.add_to_collection('errors',errors)
 
-        print("training start")
+        print(OKGREEN+"training start"+ENDC)
         for _ in range(epochs):
                 print(OKBLUE+"*******************  ", _, "  *******************"+ENDC)
                 indice = np.random.permutation(batche_num)
@@ -72,7 +76,7 @@ def train(path="/",batch_size = 10,epochs = 30,save_dir = "Saved/",save_file ="d
         print(OKGREEN+"training is finished"+ENDC)
         saver = tf.train.Saver()
         saver.save(sess, save_dir+save_file)
-        print(OKGREEN+"file saved in :"+ENDC,save_dir)
+        print(OKGREEN+"files saved in :"+ENDC,save_dir)
         plt.plot(errors, label="loss")
         plt.xlabel('# epochs')
         plt.ylabel('MSE')
@@ -88,4 +92,4 @@ if __name__ == '__main__':
     epochs = 30
     save_dir = "Save/"
     save_file = "dataSaved"
-    train(path,batch_size,epochs,save_dir,save_file)
+    training(path,batch_size,epochs,save_dir,save_file)

@@ -3,6 +3,7 @@ import numpy as np
 import time
 from dataSetGenerator import dataSetGenerator
 import matplotlib.pyplot as plt
+from colors import *
 
 start_time=time.time()
 weights=0
@@ -52,7 +53,7 @@ def batchNorm_layer(inputs, is_training, decay = 1e-5, epsilon = 1e-3):
     else:
         return tf.nn.batch_normalization(inputs, pop_mean, pop_var, beta, scale, epsilon)
 
-def conv_layer(data, num_filters, filter_size, strides=1, padding="SAME", use_bias=True, use_relu=True):
+def conv_layer(data, num_filters, filter_size, strides=1, padding="SAME", use_bias=True, use_relu=True,is_training = True):
     """
 
     :param data:
@@ -87,7 +88,7 @@ def conv_layer(data, num_filters, filter_size, strides=1, padding="SAME", use_bi
         height, width, channels=data.get_shape().as_list()
     elif len(data.get_shape().as_list())==4 :
         n, height, width, channels=data.get_shape().as_list()
-    print("--conv size--\n", height, width, channels)
+    print(FAIL+"--conv size--\n"+ENDC, height, width, channels)
     # generate weigh [kernal size, kernal size, channel, number of filters]
 
     global weights
@@ -102,12 +103,12 @@ def conv_layer(data, num_filters, filter_size, strides=1, padding="SAME", use_bi
     if use_bias:
         bias += 1
         conv = tf.add(conv, b)
-    conv = tf.add(batchNorm_layer(conv, True), b)
+    conv = tf.add(batchNorm_layer(conv,is_training), b)
     bias += 1
     if use_relu: return tf.nn.relu(conv)
     return conv
 
-def stepConvConv(data, num_filters=64, filter_size=1, strides=1):
+def stepConvConv(data, num_filters=64, filter_size=1, strides=1 ,is_training = True):
     """
     :param data:
     :param num_filters:
@@ -170,11 +171,11 @@ def stepConvConv(data, num_filters=64, filter_size=1, strides=1):
               |
              \/
     """
-    conv_1 = conv_layer(data, num_filters, filter_size, strides, padding="VALID", use_bias=False)
-    conv_2 = conv_layer(conv_1, num_filters, 3, strides, padding='SAME', use_bias=False)
-    return conv_layer(conv_2, num_filters*4, filter_size, strides, padding="VALID", use_bias=False, use_relu=False)
+    conv_1 = conv_layer(data, num_filters, filter_size, strides, padding="VALID", use_bias=False,is_training=is_training)
+    conv_2 = conv_layer(conv_1, num_filters, 3, strides, padding='SAME', use_bias=False,is_training=is_training)
+    return conv_layer(conv_2, num_filters*4, filter_size, strides, padding="VALID", use_bias=False, use_relu=False,is_training=is_training)
 
-def stepConvConvConv(data, num_filters = 128, filter_size = 1, strides = 1):
+def stepConvConvConv(data, num_filters = 128, filter_size = 1, strides = 1,is_training=True):
     """
 
     :param data:
@@ -238,11 +239,11 @@ def stepConvConvConv(data, num_filters = 128, filter_size = 1, strides = 1):
               |
              \/
     """
-    conv_1=conv_layer(data, num_filters, filter_size, 2, padding="VALID", use_bias=False)
-    conv_2=conv_layer(conv_1, num_filters, 3, strides, padding='SAME', use_bias=False)
-    return conv_layer(conv_2, num_filters*4, filter_size, strides, padding="VALID", use_bias=False, use_relu=False)
+    conv_1=conv_layer(data, num_filters, filter_size, 2, padding="VALID", use_bias=False,is_training=is_training)
+    conv_2=conv_layer(conv_1, num_filters, 3, strides, padding='SAME', use_bias=False,is_training=is_training)
+    return conv_layer(conv_2, num_filters*4, filter_size, strides, padding="VALID", use_bias=False, use_relu=False,is_training=is_training)
 
-def ResidualBlock(data, num_filters=64):
+def ResidualBlock(data, num_filters=64,is_training=True):
 
     """
     :param data:
@@ -317,12 +318,12 @@ def ResidualBlock(data, num_filters=64):
                           |
                          \/
     """
-    conv_1=conv_layer(data, num_filters*4, 1, 2, padding="VALID", use_bias=False, use_relu=False)
-    conv_2=stepConvConvConv(data, num_filters, filter_size=1, strides=1)
+    conv_1=conv_layer(data, num_filters*4, 1, 2, padding="VALID", use_bias=False, use_relu=False,is_training=is_training)
+    conv_2=stepConvConvConv(data, num_filters, filter_size=1, strides=1,is_training=is_training)
     return tf.nn.relu(tf.add(conv_1, conv_2))
 
 
-def block1(data, num_filters=64):
+def block1(data, num_filters=64,is_training=True):
     """
 
     :param data:
@@ -397,53 +398,54 @@ def block1(data, num_filters=64):
                           |
                          \/
     """
-    print("BLOCK1 -----------------------------------")
-    conv_1=stepConvConv(data, num_filters)
-    conv_2=conv_layer(data, num_filters*4, 1, 1, padding="VALID", use_bias=False, use_relu=False)
+    print(BOLD+"BLOCK1 -----------------------------------"+ENDC)
+    conv_1=stepConvConv(data, num_filters,is_training=is_training)
+    conv_2=conv_layer(data, num_filters*4, 1, 1, padding="VALID", use_bias=False, use_relu=False,is_training=is_training)
     return tf.add(conv_1, conv_2)
 
-def block2(data, num_filters=64):
-    print("BLOCK2 -----------------------------------")
-    conv=stepConvConv(data, num_filters)
+def block2(data, num_filters=64,is_training=True):
+    print(BOLD+"BLOCK2 -----------------------------------"+ENDC)
+    conv=stepConvConv(data, num_filters,is_training=is_training)
     data=tf.nn.relu(tf.add(conv, data))
-    conv=stepConvConv(data, num_filters)
+    conv=stepConvConv(data, num_filters,is_training=is_training)
     data=tf.nn.relu(tf.add(conv, data))
-    return ResidualBlock(data, num_filters*2)
+    return ResidualBlock(data, num_filters*2,is_training=is_training)
 
-def block3(data, num_filters=128):
-    print("BLOCK3 -----------------------------------")
-    conv=stepConvConv(data, num_filters)
+def block3(data, num_filters=128,is_training=True):
+    print(BOLD+"BLOCK3 -----------------------------------"+ENDC)
+    conv=stepConvConv(data, num_filters,is_training=is_training)
     data=tf.nn.relu(tf.add(conv, data))
-    conv=stepConvConv(data, num_filters)
+    conv=stepConvConv(data, num_filters,is_training=is_training)
     data=tf.nn.relu(tf.add(conv, data))
-    conv=stepConvConv(data, num_filters)
+    conv=stepConvConv(data, num_filters,is_training=is_training)
     data=tf.nn.relu(tf.add(conv, data))
-    return ResidualBlock(data, num_filters*2)
-def block4(data, num_filters=256):
-    print("BLOCK4 -----------------------------------")
-    conv=stepConvConv(data, num_filters)
+    return ResidualBlock(data, num_filters*2,is_training=is_training)
+def block4(data, num_filters=256,is_training=True):
+    print(BOLD+"BLOCK4 -----------------------------------"+ENDC)
+    conv=stepConvConv(data, num_filters,is_training=is_training)
     data=tf.nn.relu(tf.add(conv, data))
-    conv=stepConvConv(data, num_filters)
+    conv=stepConvConv(data, num_filters,is_training=is_training)
     data=tf.nn.relu(tf.add(conv, data))
-    conv=stepConvConv(data, num_filters)
+    conv=stepConvConv(data, num_filters,is_training=is_training)
     data=tf.nn.relu(tf.add(conv, data))
-    conv=stepConvConv(data, num_filters)
+    conv=stepConvConv(data, num_filters,is_training=is_training)
     data=tf.nn.relu(tf.add(conv, data))
-    conv=stepConvConv(data, num_filters)
+    conv=stepConvConv(data, num_filters,is_training=is_training)
     data=tf.nn.relu(tf.add(conv, data))
-    return ResidualBlock(data, num_filters*2)
-def block5(data, num_filters=512):
-    print("BLOCK5 -----------------------------------")
-    conv=stepConvConv(data, num_filters)
+    return ResidualBlock(data, num_filters*2,is_training=is_training)
+def block5(data, num_filters=512,is_training=True):
+    print(BOLD+"BLOCK5 -----------------------------------"+ENDC)
+    conv=stepConvConv(data, num_filters,is_training=is_training)
     data=tf.nn.relu(tf.add(conv, data))
-    conv=stepConvConv(data, num_filters)
+    conv=stepConvConv(data, num_filters,is_training=is_training)
     data=tf.nn.relu(tf.add(conv, data))
+    print(WARNING+"---pooling---"+ENDC)
     return pool_avg(data, 7, 1, 'VALID')
 
 def fc_layer(data, num_classes=21):
-    print("FC LAYER -----------------------------------")
+    print(BOLD+"FC LAYER -----------------------------------"+ENDC)
     n, height, width, channels=data.get_shape().as_list()
-    print("---fc size---\n", height, width, channels)
+    print(FAIL+"---fc size---\n"+ENDC, height, width, channels)
     data=tf.reshape(data, [-1, height*width*channels])
     # generate weigh [kernal size, kernal size, channel, number of filters]
     global weights
@@ -453,14 +455,15 @@ def fc_layer(data, num_classes=21):
     b=bias_generater(num_classes)
     return tf.add(tf.matmul(data, w), b,name='logits')
 
-def ResNet50(data, num_classes=21, num_filters=64, filter_size=7, padding='SAME', strides=2):
-    conv_1 = conv_layer(data, num_filters, filter_size, strides)
+def ResNet50(data, num_classes=21, num_filters=64, filter_size=7, padding='SAME', strides=2,is_training=True):
+    conv_1 = conv_layer(data, num_filters, filter_size, strides,is_training=is_training)
     pool_1 = pool_max(conv_1, ksize=3)
-    b_1 = block1(pool_1)
-    b_2 = block2(b_1)
-    b_3 = block3(b_2)
-    b_4 = block4(b_3)
-    b_5 = block5(b_4)
+    print(WARNING+"---pooling---"+ENDC)
+    b_1 = block1(pool_1,is_training=is_training)
+    b_2 = block2(b_1,is_training=is_training)
+    b_3 = block3(b_2,is_training=is_training)
+    b_4 = block4(b_3,is_training=is_training)
+    b_5 = block5(b_4,is_training=is_training)
     return fc_layer(b_5, num_classes)
 
 if __name__ == '__main__':
@@ -472,7 +475,7 @@ if __name__ == '__main__':
 
     # get image height, width, channels
     batche_num, height, width, channels = data.shape
-    print("--Input image--\n", height, width, channels)
+    print("-Input image-\n", height, width, channels)
 
     # number of classes
     num_classes = len(classes)
@@ -501,9 +504,6 @@ if __name__ == '__main__':
 
     # correct_prediction=tf.equal(tf.argmax(softmax), tf.argmax(y))
     # acc=tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
-    REDC = '\033[91m'
-    ENDC = '\033[0m'
 
     print("\nWe have", weights, "weights", bias, "bias  ------------")
 
