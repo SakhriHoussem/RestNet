@@ -62,12 +62,12 @@ def train(path="/",batch_size = 10,epochs = 30,save_dir = "Saved/",save_file ="d
 
         print("training start")
         for _ in range(epochs):
-                print("*******************  ", _, "  *******************")
+                print(OKBLUE+"*******************  ", _, "  *******************"+ENDC)
                 indice = np.random.permutation(batche_num)
                 for i in range(batch_size-1):
                     min_batch = indice[i*batch_size:(i+1)*batch_size]
                     curr_loss, curr_train = sess.run([loss, train], {x: data[min_batch], y: labels[min_batch]})
-                    print("Iteration %d loss:\n",OKBLUE,"%s",ENDC % (i, curr_loss))
+                    print("Iteration %d loss:\n%s" % (i, curr_loss))
                     errors.append(curr_loss)
         print(OKGREEN+"training is finished"+ENDC)
         saver = tf.train.Saver()
